@@ -58,7 +58,7 @@ namespace RptToXml
 				using (var writer = new RptDefinitionWriter(rptPath))
 				{
 					string xmlPath = args.Length > 1 ?
-						args[1] : Path.ChangeExtension(rptPath, "xml");
+						args[1] : $"{rptPath}.xml";
 					writer.WriteToXml(xmlPath);
 				}
 			}

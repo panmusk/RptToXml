@@ -6,7 +6,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
-using System.Runtime.ExceptionServices;
 
 using CrystalDecisions.CrystalReports.Engine;
 using CrystalDecisions.ReportAppServer.ClientDoc;
@@ -37,6 +36,7 @@ namespace RptToXml
 			_report.Load(filename, OpenReportMethod.OpenReportByTempCopy);
 			_rcd = _report.ReportClientDocument;
 
+			
 			_oleCompoundFile = new CompoundFile(filename);
 
 			Trace.WriteLine("Loaded report");
@@ -126,7 +126,6 @@ namespace RptToXml
 
 			GetDatabase(report, writer);
 			GetDataDefinition(report, writer);
-			GetCustomFunctions(report, writer);
 			GetReportDefinition(report, writer);
 
 			writer.WriteEndElement();
@@ -187,19 +186,13 @@ namespace RptToXml
 			writer.WriteEndElement();
 		}
 
-		[HandleProcessCorruptedStateExceptionsAttribute]
 		private void GetSubreports(ReportDocument report, XmlWriter writer)
 		{
 			writer.WriteStartElement("SubReports");
 
-			try { 
 			foreach (ReportDocument subreport in report.Subreports)
 				ProcessReport(subreport, writer);
-			}
-			catch (Exception e)
-			{
-				Console.WriteLine($"Error loading subpreport, {e}");
-			}
+
 			writer.WriteEndElement();
 		}
 
@@ -242,38 +235,6 @@ namespace RptToXml
 				writer.WriteEndElement();
 
 				writer.WriteEndElement();
-			}
-
-			writer.WriteEndElement();
-		}
-
-		private void GetCustomFunctions(ReportDocument report, XmlWriter writer)
-		{
-			writer.WriteStartElement("CustomFunctions");
-
-			CRDataDefModel.CustomFunctions funcs;
-			if (!report.IsSubreport)
-			{
-				funcs = report.ReportClientDocument.CustomFunctionController.GetCustomFunctions();
-			}
-			else
-			{
-				var subrptClientDoc = _report.ReportClientDocument.SubreportController.GetSubreport(report.Name);
-				//funcs = subrptClientDoc.CustomFunctionController.GetCustomFunctions();
-				funcs = null;
-			}
-
-			if (funcs != null)
-			{
-				foreach (CRDataDefModel.CustomFunction func in funcs)
-				{
-					writer.WriteStartElement("CustomFunction");
-					writer.WriteAttributeString("Name", func.Name);
-					writer.WriteAttributeString("Syntax", func.Syntax.ToString());
-					writer.WriteElementString("Text", func.Text); // an element so line breaks are literal
-
-					writer.WriteEndElement();
-				}
 			}
 
 			writer.WriteEndElement();
@@ -424,13 +385,8 @@ namespace RptToXml
 			writer.WriteEndElement();
 
 			writer.WriteStartElement("ParameterFieldDefinitions");
-			try { 
-				foreach (var field in report.DataDefinition.ParameterFields)
-					GetFieldObject(field, report, writer);
-			} catch( Exception e)
-			{
-				Console.WriteLine($"Error processing ParameterFieldDefinitions, {e}");
-			}
+			foreach (var field in report.DataDefinition.ParameterFields)
+				GetFieldObject(field, report, writer);
 			writer.WriteEndElement();
 
 			writer.WriteStartElement("RunningTotalFieldDefinitions");
@@ -451,7 +407,6 @@ namespace RptToXml
 			writer.WriteEndElement();
 		}
 
-		[HandleProcessCorruptedStateExceptionsAttribute]
 		private void GetFieldObject(Object fo, ReportDocument report, XmlWriter writer)
 		{
 			if (fo is DatabaseFieldDefinition)
@@ -487,20 +442,15 @@ namespace RptToXml
 				var gnf = (GroupNameFieldDefinition)fo;
 
 				writer.WriteStartElement("GroupNameFieldDefinition");
-				try 
-				{
-					writer.WriteAttributeString("FormulaName", gnf.FormulaName);
-					writer.WriteAttributeString("Group", gnf.Group.ToString());
-					writer.WriteAttributeString("GroupNameFieldName", gnf.GroupNameFieldName);
-					writer.WriteAttributeString("Kind", gnf.Kind.ToString());
-					writer.WriteAttributeString("Name", gnf.Name);
-					writer.WriteAttributeString("NumberOfBytes", gnf.NumberOfBytes.ToString(CultureInfo.InvariantCulture));
-					writer.WriteAttributeString("ValueType", gnf.ValueType.ToString());
-				}
-				catch( Exception e)
-				{
-					Console.WriteLine($"Error loading formula for group '{gnf.GroupNameFieldName}', {e}");
-				}
+
+				writer.WriteAttributeString("FormulaName", gnf.FormulaName);
+				writer.WriteAttributeString("Group", gnf.Group.ToString());
+				writer.WriteAttributeString("GroupNameFieldName", gnf.GroupNameFieldName);
+				writer.WriteAttributeString("Kind", gnf.Kind.ToString());
+				writer.WriteAttributeString("Name", gnf.Name);
+				writer.WriteAttributeString("NumberOfBytes", gnf.NumberOfBytes.ToString(CultureInfo.InvariantCulture));
+				writer.WriteAttributeString("ValueType", gnf.ValueType.ToString());
+
 			}
 			else if (fo is ParameterFieldDefinition)
 			{
